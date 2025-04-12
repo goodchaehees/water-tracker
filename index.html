@@ -1,1 +1,258 @@
-<!DOCTYPE html><html><head><meta charset='UTF-8'><title>Water Tracker</title></head><body><h1>테스트용 HTML</h1></body></html>
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>물 마시기 추적기</title>
+
+  <!-- Pretendard Font -->
+  <link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css" rel="stylesheet">
+
+  <!-- flatpickr CSS -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+
+  <style>
+    body {
+      font-family: 'Pretendard', sans-serif;
+      background-image: url('bg-paper.png');
+      background-color: #f9f1e0;
+      background-size: cover;
+      background-repeat: no-repeat;
+      background-position: center center;
+      text-align: center;
+      padding: 3rem 1rem;
+      color: #2b2b2b;
+      max-width: 500px;
+      margin: 0 auto;
+    }
+    h1 {
+      font-size: 2rem;
+      margin-bottom: 1.5rem;
+      color: #5c4b3a;
+    }
+    #cup-container {
+      background-color: rgba(255, 255, 255, 0.5);
+      border-radius: 20px;
+      padding: 2rem;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+      margin-bottom: 2rem;
+    }
+    #cup-img {
+      width: 200px;
+      height: auto;
+      margin-bottom: 1.5rem;
+    }
+    .progress-text {
+      font-size: 1.2rem;
+      margin-bottom: 1rem;
+      font-weight: 600;
+      color: #5c4b3a;
+    }
+    .buttons-container {
+      display: flex;
+      justify-content: center;
+      gap: 1rem;
+      margin-top: 1.5rem;
+      flex-wrap: wrap;
+    }
+    button {
+      background-color: #7dacbd;
+      border: none;
+      border-radius: 8px;
+      padding: 0.8rem 1.5rem;
+      font-size: 1rem;
+      color: white;
+      cursor: pointer;
+      transition: all 0.2s;
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    }
+    button:hover {
+      background-color: #6895a7;
+      transform: translateY(-2px);
+    }
+    button:active {
+      transform: translateY(0);
+    }
+    button.reset {
+      background-color: #e67e7e;
+    }
+    button.reset:hover {
+      background-color: #d66c6c;
+    }
+    .total-today {
+      font-size: 1.1rem;
+      margin-top: 1rem;
+      color: #5c4b3a;
+    }
+    .last-drink {
+      font-size: 0.95rem;
+      color: #7b6a5a;
+      margin-top: 0.7rem;
+    }
+    .info-box {
+      background-color: rgba(255, 255, 255, 0.7);
+      border-radius: 12px;
+      padding: 1rem;
+      margin-top: 1.5rem;
+    }
+    .calendar-box {
+      position: relative;
+      margin-top: 2rem;
+      background-color: rgba(255, 255, 255, 0.65);
+      border-radius: 12px;
+      padding: 1.5rem;
+      color: #5c4b3a;
+    }
+      .flatpickr-calendar {
+      z-index: 9999 !important;
+      top: auto !important;
+      bottom: unset !important;
+    }
+    .calendar-box input {
+      padding: 0.5rem;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      font-size: 1rem;
+      width: 100%;
+      max-width: 250px;
+    }
+    .calendar-detail-box {
+      margin-top: 1rem;
+      font-size: 1.1rem;
+      font-weight: 500;
+    }
+  </style>
+</head>
+<body>
+  <h1>오늘 얼마나 마셨어요?</h1>
+  <div id="cup-container">
+    <img id="cup-img" src="cup_0.png" alt="물 컵 이미지" />
+    <div class="progress-text">
+      <span id="current-amount">0</span> / 8 잔
+    </div>
+    <div class="total-today" id="total-amount">오늘 총 0ml의 물을 마셨습니다.</div>
+    <div class="last-drink" id="last-drink-time"></div>
+  </div>
+  <div class="buttons-container">
+    <button onclick="drinkWater()">물 마셨습니다 (+1잔)</button>
+    <button class="reset" onclick="resetWater()">초기화</button>
+  </div>
+  <div class="info-box">
+    <p>💧 물을 충분히 마시면 건강에 좋습니다!</p>
+    <p>하루 권장량: 성인 기준 8잔 (약 1.6-2리터)</p>
+  </div>
+  <div class="calendar-box">
+    <h2>📅 날짜별 기록 보기</h2>
+    <input type="text" id="calendar-picker" placeholder="날짜를 선택하세요" />
+    <div id="calendar-detail" class="calendar-detail-box"></div>
+  </div>
+
+  <!-- flatpickr JS CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+  <script>
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, "0");
+    const day = String(now.getDate()).padStart(2, "0");
+    const today = `${year}-${month}-${day}`;
+
+    let cupLevel = 0;
+    let totalML = 0;
+    let lastDrinkTime = "";
+
+    function loadData() {
+      const savedDate = localStorage.getItem('waterTrackerDate');
+      if (savedDate !== today) {
+        resetWater(false);
+        return;
+      }
+      const savedCupLevel = localStorage.getItem('waterTrackerCupLevel');
+      const savedTotalML = localStorage.getItem('waterTrackerTotalML');
+      const savedLastDrink = localStorage.getItem('waterTrackerLastDrink');
+      if (savedCupLevel) cupLevel = parseInt(savedCupLevel);
+      if (savedTotalML) totalML = parseInt(savedTotalML);
+      if (savedLastDrink) lastDrinkTime = savedLastDrink;
+      updateUI();
+    }
+
+    function updateUI() {
+      document.getElementById('cup-img').src = `cup_${cupLevel}.png`;
+      document.getElementById('current-amount').textContent = cupLevel;
+      document.getElementById('total-amount').textContent = `오늘 총 ${totalML}ml의 물을 마셨습니다.`;
+      document.getElementById('last-drink-time').textContent = lastDrinkTime
+        ? `마지막으로 물을 마신 시간: ${lastDrinkTime}`
+        : "";
+    }
+
+    function saveData() {
+      localStorage.setItem('waterTrackerDate', today);
+      localStorage.setItem('waterTrackerCupLevel', cupLevel);
+      localStorage.setItem('waterTrackerTotalML', totalML);
+      localStorage.setItem('waterTrackerLastDrink', lastDrinkTime);
+      saveDailyRecord();
+    }
+
+    function saveDailyRecord() {
+      const historyRaw = localStorage.getItem('waterTrackerHistory');
+      const history = historyRaw ? JSON.parse(historyRaw) : {};
+      history[today] = {
+        cupLevel: cupLevel,
+        ml: totalML
+      };
+      localStorage.setItem('waterTrackerHistory', JSON.stringify(history));
+    }
+
+    function drinkWater() {
+      if (cupLevel < 8) {
+        cupLevel++;
+        totalML += 200;
+        lastDrinkTime = new Date().toLocaleTimeString();
+        updateUI();
+        saveData();
+        if (cupLevel === 8) {
+          setTimeout(() => alert("오늘 목표를 모두 달성했어요! 🎉"), 300);
+        }
+      }
+    }
+
+    function resetWater(askConfirm = true) {
+      if (askConfirm && !confirm("정말 초기화하시겠습니까?")) return;
+      cupLevel = 0;
+      totalML = 0;
+      lastDrinkTime = "";
+      updateUI();
+      saveData();
+    }
+
+    flatpickr("#calendar-picker", {
+      dateFormat: "Y-m-d",
+      position: "below", //
+      appendTo: document.querySelector(".calendar-box"),
+      positionElement: document.getElementById("calendar-picker"),
+      onChange: function (selectedDates) {
+        const historyRaw = localStorage.getItem("waterTrackerHistory");
+        if (!historyRaw) return;
+        const history = JSON.parse(historyRaw);
+        const detailBox = document.getElementById("calendar-detail");
+
+        const date = selectedDates[0];
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, "0");
+        const day = String(date.getDate()).padStart(2, "0");
+        const formattedDate = `${year}-${month}-${day}`;
+
+        if (history[formattedDate]) {
+          const { cupLevel, ml } = history[formattedDate];
+          detailBox.textContent = `${formattedDate} 기록: ${cupLevel}잔 (${ml}ml)`;
+        } else {
+          detailBox.textContent = `${formattedDate} 기록 없음 😢`;
+        }
+      }
+    });
+
+ window.onload = () => {
+  loadData();
+};
+  </script>
+</body>
+</html>
